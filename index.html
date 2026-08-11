@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>الميناء — مكان آمن للحديث</title>
+<title>Home — مكان آمن للحديث</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rakkas&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/twemoji.min.js" crossorigin="anonymous"></script>
@@ -75,10 +75,11 @@
   .brand-row{ display:flex; align-items:center; gap:0.65rem; }
   .brand{ font-size: 1.7rem; color: var(--text); text-shadow: 0 1px 6px rgba(0,0,0,0.4); }
   .beam-wrap{ position:relative; width:34px; height:34px; }
-  .lighthouse{ width:34px; height:34px; }
-  .lighthouse .beam{ transform-origin: 17px 10px; animation: sweep 4s ease-in-out infinite; opacity: 0.85; }
-  @keyframes sweep{ 0%,100%{ transform: rotate(-18deg); } 50%{ transform: rotate(18deg); } }
-  @media (prefers-reduced-motion: reduce){ .lighthouse .beam{ animation: none; } }
+  .house-logo{ width:34px; height:34px; }
+  .house-logo .window{ animation: glow 3.2s ease-in-out infinite; }
+  .house-logo .window.win2{ animation-delay: .6s; }
+  @keyframes glow{ 0%,100%{ opacity:0.55; } 50%{ opacity:1; } }
+  @media (prefers-reduced-motion: reduce){ .house-logo .window{ animation: none; opacity: 0.9; } }
 
   .controls{ display:flex; align-items:center; gap: 0.6rem; flex-wrap: wrap; }
   .textsize{ display:flex; align-items:center; gap: 0.25rem; background: var(--card); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border:1px solid var(--line); border-radius: 999px; padding: 0.2rem; }
@@ -461,15 +462,14 @@
     <div class="topbar-row1">
       <div class="brand-row">
         <div class="beam-wrap" aria-hidden="true">
-          <svg class="lighthouse" viewBox="0 0 34 34">
-            <polygon class="beam" points="17,10 34,0 34,20" fill="var(--accent-strong)"></polygon>
-            <rect x="13" y="10" width="8" height="16" fill="var(--text)"></rect>
-            <polygon points="11,10 23,10 19,4 15,4" fill="var(--text)"></polygon>
-            <rect x="10" y="26" width="14" height="4" fill="var(--text)"></rect>
-            <circle cx="17" cy="9" r="1.6" fill="var(--accent)"></circle>
+          <svg class="house-logo" viewBox="0 0 34 34">
+            <polygon points="17,4 31,16 26,16 26,29 8,29 8,16 3,16" fill="var(--text)"></polygon>
+            <rect x="14" y="20" width="6" height="9" fill="var(--card)"></rect>
+            <rect class="window win1" x="10.5" y="18.5" width="4" height="4" fill="var(--accent)"></rect>
+            <rect class="window win2" x="19.5" y="18.5" width="4" height="4" fill="var(--accent)"></rect>
           </svg>
         </div>
-        <span class="brand">الميناء</span>
+        <span class="brand">Home</span>
       </div>
 
       <div class="left-col hidden" id="leftCol">
@@ -504,7 +504,7 @@
   <div id="authScreen">
     <div class="card fancy-card">
       <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
-      <h2 id="authTitle" style="margin-top:0">مرحبًا بك في الميناء</h2>
+      <h2 id="authTitle" style="margin-top:0">مرحبًا بك في Home</h2>
       <p class="muted" style="margin-top:-0.4rem">مكان صغير وهادئ للنشر والدردشة مع أقرب أصدقائك.</p>
 
       <div id="loginForm">
@@ -831,13 +831,13 @@
   } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
   const firebaseConfig = {
-    apiKey: "AIzaSyCCof1wHa_632SNu0lwMhfEJHquFsMb09Y",
-    authDomain: "harbor-8cd0b.firebaseapp.com",
-    projectId: "harbor-8cd0b",
-    storageBucket: "harbor-8cd0b.firebasestorage.app",
-    messagingSenderId: "948060766996",
-    appId: "1:948060766996:web:fdcf89c3ffd83f6c5d7801",
-    measurementId: "G-R3NLR7Z24H"
+    apiKey: "AIzaSyCoG34qaCxxpa1LIpy91ecKDVg3Kdr9NNY",
+    authDomain: "home-b9215.firebaseapp.com",
+    projectId: "home-b9215",
+    storageBucket: "home-b9215.firebasestorage.app",
+    messagingSenderId: "507787411929",
+    appId: "1:507787411929:web:bd9cc4c4dd48fac00319c8",
+    measurementId: "G-XK94BNFQ7D"
   };
 
   const app = initializeApp(firebaseConfig);
@@ -913,7 +913,7 @@
 
   function usernameToEmail(u){
     const clean = u.toLowerCase().trim().replace(/[^a-z0-9_.-]/g, '_');
-    return clean + '@harbor.local';
+    return clean + '@home.local';
   }
 
   function setAvatarVisual(el, photo, name){
@@ -1156,8 +1156,8 @@
   }
 
   // ---------- Theme + text size (kept on this browser only) ----------
-  function loadPrefs(){ try{ return JSON.parse(localStorage.getItem('harbor-prefs') || '{}'); }catch(e){ return {}; } }
-  function savePrefs(prefs){ try{ localStorage.setItem('harbor-prefs', JSON.stringify(prefs)); }catch(e){} }
+  function loadPrefs(){ try{ return JSON.parse(localStorage.getItem('home-prefs') || '{}'); }catch(e){ return {}; } }
+  function savePrefs(prefs){ try{ localStorage.setItem('home-prefs', JSON.stringify(prefs)); }catch(e){} }
   const THEME_LIST = ['pink', 'green', 'purple', 'blue'];
   function applyTheme(theme){
     if(!THEME_LIST.includes(theme)) theme = 'purple';
@@ -1199,7 +1199,7 @@
   $('showLogin').addEventListener('click', (e) => {
     e.preventDefault();
     $('signupForm').classList.add('hidden'); $('loginForm').classList.remove('hidden');
-    $('authTitle').textContent = 'مرحبًا بك في الميناء';
+    $('authTitle').textContent = 'مرحبًا بك في Home';
     $('suPass').value = ''; $('suPassOverlay').textContent = '';
   });
 
@@ -1665,8 +1665,8 @@
   let chatListMode = 'all'; // 'all' | 'groups'
 
   function convoIdFor(a, b){ return [a, b].sort().join('_'); }
-  function loadPinned(){ try{ return JSON.parse(localStorage.getItem('harbor-pinned-chats') || '[]'); }catch(e){ return []; } }
-  function savePinned(arr){ try{ localStorage.setItem('harbor-pinned-chats', JSON.stringify(arr)); }catch(e){} }
+  function loadPinned(){ try{ return JSON.parse(localStorage.getItem('home-pinned-chats') || '[]'); }catch(e){ return []; } }
+  function savePinned(arr){ try{ localStorage.setItem('home-pinned-chats', JSON.stringify(arr)); }catch(e){} }
   function togglePin(uid){
     const pinned = loadPinned();
     const i = pinned.indexOf(uid);
