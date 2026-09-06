@@ -757,6 +757,7 @@
       <p class="profile-bio-input hidden" id="viewProfileBio" style="border-bottom:none; cursor:default;"></p>
       <div class="row" style="justify-content:center; margin-bottom:0.5rem">
         <button class="btn small" id="viewProfileDmBtn">💬 مراسلة</button>
+        <button class="btn small hidden" id="viewProfileBanBtn" style="background:var(--danger); color:#2a0a0a;">⛔ حظر وحذف الحساب</button>
       </div>
 
       <hr class="profile-divider">
@@ -826,8 +827,8 @@
     onAuthStateChanged, signOut, setPersistence, browserLocalPersistence, updateProfile
   } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
   import {
-    getFirestore, collection, addDoc, deleteDoc, doc, setDoc, updateDoc, onSnapshot,
-    query, orderBy, limit, limitToLast, where, serverTimestamp, arrayUnion, arrayRemove, getDocs
+    getFirestore, collection, collectionGroup, addDoc, deleteDoc, doc, setDoc, updateDoc, onSnapshot,
+    query, orderBy, limit, limitToLast, where, serverTimestamp, arrayUnion, arrayRemove, getDocs, getDoc
   } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -850,6 +851,14 @@
   const profilesCol = collection(db, 'profiles');
   const albumCol = collection(db, 'album');
   const dmsCol = collection(db, 'dms');
+  const bannedCol = collection(db, 'banned');
+
+  // ---------- Admin ----------
+  // Put your own Firebase Auth UID(s) here to get admin powers (delete any
+  // post/message, ban a user). Find your UID in Firebase Console →
+  // Authentication → Users, or log in and check the console for your uid.
+  const ADMIN_UIDS = ['vlunfx9Xw6QaBZBBmpg3ddus62H2'];
+  function isAdmin(){ return !!(currentUser && ADMIN_UIDS.includes(currentUser.uid)); }
 
   let currentUser = null;
   let myProfile = { displayName: '', photo: '', bio: '', blockedUids: [] };
@@ -971,7 +980,7 @@
             <button type="button" class="item-menu-option item-react-trigger" ${attrs}>🙂 تفاعل</button>
             ${canReply ? `<button type="button" class="item-menu-option ${extraClasses}-reply-btn" ${replyAttrs}>↩️ رد</button>` : ''}
             ${isMine && canEdit ? `<button type="button" class="item-menu-option ${extraClasses}-edit-btn" ${attrs}>✏️ تعديل</button>` : ''}
-            ${isMine ? `<button type="button" class="item-menu-option danger ${extraClasses}-del-btn" ${attrs}>🗑️ حذف</button>` : ''}
+            ${(isMine || isAdmin()) ? `<button type="button" class="item-menu-option danger ${extraClasses}-del-btn" ${attrs}>🗑️ حذف</button>` : ''}
           </div>
           <div class="item-menu-react hidden">
             <button type="button" class="item-menu-back">‹ رجوع</button>
@@ -1268,8 +1277,17 @@
   let unsubscribePosts = null, unsubscribeProfiles = null, unsubscribeMyProfile = null, unsubscribeAlbum = null;
   let heartbeatInterval = null, onlineRowInterval = null;
 
-  onAuthStateChanged(auth, (user) => {
+  onAuthStateChanged(auth, async (user) => {
     if (user){
+      try{
+        const bannedSnap = await getDoc(doc(db, 'banned', user.uid));
+        if (bannedSnap.exists()){
+          await signOut(auth);
+          $('loginError').textContent = 'تم حظر هذا الحساب من قبل المشرف.';
+          $('loginError').classList.remove('hidden');
+          return;
+        }
+      }catch(e){ console.error('ban check failed:', e); }
       currentUser = { uid: user.uid, displayName: user.displayName || 'صديق' };
       showApp();
     } else {
@@ -2288,7 +2306,64 @@
       }).join('');
     }
     twemojify(list);
+    $('viewProfileBanBtn').classList.toggle('hidden', !isAdmin());
     $('viewProfileModal').classList.remove('hidden');
+  }
+
+  $('viewProfileBanBtn').addEventListener('click', () => {
+    if (!isAdmin() || !viewingProfileUid) return;
+    const targetUid = viewingProfileUid;
+    const targetName = (profilesCache[targetUid] || {}).displayName || 'هذا الشخص';
+    confirmAction(
+      `سيتم حذف حساب "${targetName}" نهائيًا — كل منشوراته ورسائله وتعليقاته وردوده، ولن يتمكن من الدخول للحساب مرة أخرى. هذا الإجراء لا يمكن التراجع عنه.`,
+      async () => {
+        try{
+          await banAndDeleteUser(targetUid, targetName);
+          $('viewProfileModal').classList.add('hidden');
+        }catch(e){
+          console.error('ban user failed:', e);
+          alert('تعذّر حظر الحساب (' + (e.code || e.message || 'خطأ') + ')');
+        }
+      }
+    );
+  });
+
+  async function banAndDeleteUser(uid, displayName){
+    // Mark banned first so they're kicked out immediately even if some
+    // deletes below fail partway through.
+    await setDoc(doc(db, 'banned', uid), {
+      username: displayName, bannedAt: serverTimestamp(), bannedBy: currentUser.uid
+    });
+
+    // Their posts (and each post's comments subcollection).
+    const postsSnap = await getDocs(query(postsCol, where('uid', '==', uid)));
+    for (const p of postsSnap.docs){
+      const commentsSnap = await getDocs(collection(db, 'posts', p.id, 'comments'));
+      await Promise.all(commentsSnap.docs.map(c => deleteDoc(c.ref).catch(() => {})));
+      await deleteDoc(p.ref).catch(() => {});
+    }
+
+    // Their comments left on other people's posts.
+    const theirComments = await getDocs(query(collectionGroup(db, 'comments'), where('uid', '==', uid)));
+    await Promise.all(theirComments.docs.map(c => deleteDoc(c.ref).catch(() => {})));
+
+    // Their group-chat messages.
+    const chatSnap = await getDocs(query(chatCol, where('uid', '==', uid)));
+    await Promise.all(chatSnap.docs.map(m => deleteDoc(m.ref).catch(() => {})));
+
+    // Their messages inside any DM conversation.
+    const dmsSnap = await getDocs(query(dmsCol, where('participants', 'array-contains', uid)));
+    for (const d of dmsSnap.docs){
+      const dmMsgsSnap = await getDocs(query(collection(db, 'dms', d.id, 'messages'), where('uid', '==', uid)));
+      await Promise.all(dmMsgsSnap.docs.map(m => deleteDoc(m.ref).catch(() => {})));
+    }
+
+    // Their album photos.
+    const albumSnap = await getDocs(query(albumCol, where('uid', '==', uid)));
+    await Promise.all(albumSnap.docs.map(a => deleteDoc(a.ref).catch(() => {})));
+
+    // Their profile.
+    await deleteDoc(doc(db, 'profiles', uid)).catch(() => {});
   }
 
   document.addEventListener('click', (e) => {
